@@ -8,6 +8,47 @@
    License: MIT
    */
 
+# https://stackoverflow.com/questions/4444475/transform-relative-path-into-absolute-url-using-php
+function rel2abs($rel, $base) {
+    /* return if already absolute URL */
+    if (parse_url($rel, PHP_URL_SCHEME) != '') return $rel;
+
+    /* queries and anchors */
+    if ($rel[0]=='#' || $rel[0]=='?') return $base.$rel;
+
+    /* parse base URL and convert to local variables:
+       $scheme, $host, $path */
+    extract(parse_url($base));
+
+    /* remove non-directory element from path */
+    $path = preg_replace('#/[^/]*$#', '', $path);
+
+    /* destroy path if relative url points to root */
+    if ($rel[0] == '/') $path = '';
+
+    /* dirty absolute URL */
+    $abs = "$host$path/$rel";
+
+    /* replace '//' or '/./' or '/foo/../' with '/' */
+    $re = array('#(/\.?/)#', '#/(?!\.\.)[^/]+/\.\./#');
+    for($n=1; $n>0; $abs=preg_replace($re, '/', $abs, -1, $n)) {}
+
+    /* absolute URL is ready! */
+    return $scheme.'://'.$abs;
+}
+
+function nbconvert_get_github_raw_url($url) {
+  // converts the github url to the github raw url.
+  $firstslash = strpos($url, '/');
+  $protocol = substr($url, 0, $firstslash-1);
+  $clean_url = substr($url, $firstslash+2);
+  $clean_url_noblob = str_replace('/blob', '', $clean_url);
+  $github_raw_prefix = substr($clean_url_noblob, strpos($clean_url_noblob, '/'));
+  $github_raw_url = $protocol . "://raw.githubusercontent.com" . $github_raw_prefix;
+  
+  return $github_raw_url;
+}
+
 function nbconvert_handler($atts) {
   //run function that actually does the work of the plugin
   $nb_output = nbconvert_function($atts);
@@ -85,7 +126,8 @@ function nbconvert_function($atts) {
 
   $clean_url = preg_replace('#^https?://#', '', rtrim($url,'/'));
   $html = file_get_contents("https://nbviewer.jupyter.org/url/" . $clean_url);
-  $nb_output = nbconvert_getHTMLByID('notebook-container', $html);
+  $github_raw_url = nbconvert_get_github_raw_url($url);
+  $nb_output = nbconvert_getHTMLByID_fix_img('notebook-container', $html, $github_raw_url);
 
   $last_update_date_time = nbconvert_get_most_recent_git_change_for_file_from_api($url);
 
@@ -115,12 +157,20 @@ function nbconvert_innerHTML(DOMNode $elm) {
   return $innerHTML;
 }
 
-function nbconvert_getHTMLByID($id, $html) {
+function nbconvert_getHTMLByID_fix_img($id, $html, $baseurl) {
     $dom = new DOMDocument;
     libxml_use_internal_errors(true);
     $dom->loadHTML($html);
     $node = $dom->getElementById($id);
     if ($node) {
+        $imgnodes = $node->getElementsByTagName('img');
+        foreach($imgnodes as $imgnode) {
+            $imgurl = $imgnode->getAttribute('src');
+            if($imgurl) {
+                $absimgurl = rel2abs($imgurl, $baseurl);
+                $imgnode->setAttribute('src', $absimgurl);
+            }
+        }
         $inner_output = nbconvert_innerHTML($node);
         return $inner_output;
     }

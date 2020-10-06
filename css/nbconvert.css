@@ -5,9 +5,6 @@
 div.notebook {
     position: relative;
     font-size: 0.75em;
-    border: 3px dashed;
-    padding: 10px;
-    margin-bottom:15px
 }
 
 div.notebook label.github-last-update {
@@ -21,6 +18,7 @@ div.notebook div.nbconvert-labels label.github-link a:focus {
   color:#fff;
   -webkit-box-shadow:none;
   box-shadow:none;
+  display: none;
 }
 
 div.notebook div.nbconvert-labels {
@@ -34,7 +32,7 @@ div.notebook div.nbconvert-labels {
   text-transform:none;
   font-size:1.1em;
   font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
-
+  display: none;
 }
 
 div.notebook div.nbconvert {
